@@ -237,6 +237,30 @@ Scope.prototype.$clearPhase = function() {
     this.$$phase = null;
 };
 
+Scope.prototype.$watchCollection = function(watchFn, listenerFn) {
+    var self = this;
+    var newValue;
+    var oldValue;
+    var changeCount = 0;
+
+    var internalWatchFn = function(scope) {
+        newValue = watchFn(scope);
+    
+        if (!self.$$areEqual(newValue, oldValue, false)) {
+            changeCount++;
+        }
+        oldValue = newValue;
+
+        return changeCount;
+    };
+
+    var internalListenerFn = function() {        
+        listenerFn(newValue, oldValue, self);
+    };
+
+    return this.$watch(internalWatchFn, internalListenerFn);
+}
+
 Scope.prototype.$destroy = function() {
     if (this.$parent) {
         var siblings = this.$parent.$$children;
