@@ -363,9 +363,18 @@ Scope.prototype.$new = function (isolated, parent) {
   }
   parent.$$children.push(child);
   child.$$watchers = [];
+  child.$$listeners = {};
   child.$$children = [];
   child.$parent = parent;
   return child;
+};
+
+Scope.prototype.$on = function (eventName, listener) {
+  var listeners = this.$$listeners[eventName];
+  if (!listeners) {
+    this.$$listeners[eventName] = listeners = [];
+  }
+  listeners.push(listener);
 };
 
 function Scope () {
@@ -377,6 +386,7 @@ function Scope () {
   this.$$postDigestQueue = [];
   this.$root = this;
   this.$$children = [];
+  this.$$listeners = {};
   this.$$phase = null;
 }
 
