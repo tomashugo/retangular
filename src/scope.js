@@ -1,6 +1,6 @@
 'user strict';
 
-const { event } = require('jquery');
+// const { event } = require('jquery');
 var _ = require('lodash');
 
 function initWatchVal () { }
