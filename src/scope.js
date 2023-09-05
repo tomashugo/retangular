@@ -408,6 +408,7 @@ Scope.prototype.$emit = function (eventName) {
     scope.$$fireEventOnScope(eventName, listenerArgs);
     scope = scope.$parent;
   } while (scope);
+  event.currentScope = null;
   return event;
 };
 
@@ -419,6 +420,7 @@ Scope.prototype.$broadcast = function (eventName) {
     scope.$$fireEventOnScope(eventName, listenerArgs);
     return true;
   });
+  event.currentScope = null;
   return event;
 };
 
