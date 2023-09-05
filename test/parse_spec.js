@@ -49,4 +49,28 @@ describe('parse', function () {
     expect(function () { parse('42e-'); }).toThrow();
     expect(function () { parse('42e-a'); }).toThrow();
   });
+
+  it('can parse a string in single quotes', function () {
+    var fn = parse("'abc'");
+    expect(fn()).toEqual('abc');
+  });
+
+  it('can parse a string in double quotes', function () {
+    var fn = parse('"abc"');
+    expect(fn()).toEqual('abc');
+  });
+
+  it('will not parse a string with mismatching quotes', function () {
+    expect(function () { parse('"abc\'') }).toThrow();
+  });
+
+  it('can parse a string with single quotes inside', function () {
+    var fn = parse("'a\\\'b'");
+    expect(fn()).toEqual('a\'b');
+  });
+
+  it('can parse a string with double quotes inside', function () {
+    var fn = parse('"a\\\"b"');
+    expect(fn()).toEqual('a\"b');
+  });
 });
