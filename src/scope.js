@@ -337,6 +337,7 @@ Scope.prototype.$watchCollection = function (watchFn, listenerFn) {
 }
 
 Scope.prototype.$destroy = function () {
+  this.$broadcast('$destroy');
   if (this.$parent) {
     var siblings = this.$parent.$$children;
     var indexOfThis = siblings.indexOf(this);
@@ -345,6 +346,7 @@ Scope.prototype.$destroy = function () {
     }
   }
   this.$$watchers = null;
+  this.$$listeners = {};
 };
 
 Scope.prototype.$new = function (isolated, parent) {
@@ -391,8 +393,12 @@ Scope.prototype.$$fireEventOnScope = function (eventName, listenerArgs) {
     if (listeners[i] === null) {
       listeners.splice(i, 1);
     } else {
-      listeners[i].apply(null, listenerArgs);
-      i++
+      try {
+        listeners[i].apply(null, listenerArgs);
+      } catch (e) {
+        console.error(e);
+      }
+      i++;
     }
   }
 
