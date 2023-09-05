@@ -4,19 +4,37 @@ function Lexer () {
 
 }
 
+// Init Utilities
+
 Lexer.prototype.peek = function () {
   return this.index < this.text.length - 1 ? this.text.charAt(this.index + 1) : false;
 }
 
+Lexer.prototype.isExpOperator = function (ch) {
+  return ch === '-' || ch === '+' || this.isNumber(ch);
+}
+
+// End Utilities
+
 Lexer.prototype.readNumber = function () {
   var number = '';
   while (this.index < this.text.length) {
-    var ch = this.text.charAt(this.index);
+    var ch = this.text.charAt(this.index).toLowerCase();
     if (this.isNumber(ch) || ch === '.') {
       number += ch;
     }
     else {
-      break;
+      var nextCh = this.peek();
+      var prevCh = number.charAt(number.length - 1);
+      if (ch === 'e' && this.isExpOperator(nextCh)) {
+        number += ch;
+      } else if (this.isExpOperator(ch) && prevCh === 'e' && nextCh && this.isNumber(nextCh)) {
+        number += ch;
+      } else if (this.isExpOperator(ch) && prevCh === 'e' && (!nextCh || !this.isNumber(nextCh))) {
+        throw 'Invalid exponent';
+      } else {
+        break;
+      }
     }
     this.index++;
   }
