@@ -9,6 +9,9 @@ function Lexer () {
 AST.Program = 'Program';
 AST.Literal = 'Literal';
 AST.ArrayExpression = 'ArrayExpression';
+AST.ObjectExpression = 'ObjectExpression';
+AST.Property = 'Property';
+AST.Identifier = 'Identifier';
 
 // Init Utilities
 
@@ -66,7 +69,11 @@ Lexer.prototype.readIdentifier = function () {
     this.index++;
   }
 
-  var token = { text: text };
+  var token = {
+    text: text,
+    identifier: true
+  };
+
   this.tokens.push(token);
 }
 
@@ -139,6 +146,11 @@ Lexer.prototype.readNumber = function () {
   });
 };
 
+Lexer.prototype.is = function (chs) {
+  return chs.indexOf(this.ch) >= 0;
+};
+
+
 Lexer.prototype.lex = function (text) {
   this.text = text;
   this.index = 0;
@@ -147,11 +159,11 @@ Lexer.prototype.lex = function (text) {
 
   while (this.index < this.text.length) {
     this.ch = this.text.charAt(this.index);
-    if (this.isNumber(this.ch) || (this.ch === '.' && this.isNumber(this.peek()))) {
+    if (this.isNumber(this.ch) || (this.is('.') && this.isNumber(this.peek()))) {
       this.readNumber();
-    } else if (this.ch === '\'' || this.ch === '"') {
+    } else if (this.is('\'"')) {
       this.readString(this.ch);
-    } else if (this.ch === '[' || this.ch === ']' || this.ch === ',') {
+    } else if (this.is('[],{}:')) {
       this.tokens.push({
         text: this.ch
       });
@@ -172,6 +184,25 @@ function AST (lexer) {
   this.lexer = lexer;
 }
 
+AST.prototype.object = function () {
+  var properties = [];
+  if (!this.peek('}')) {
+    do {
+      var property = { type: AST.Property };
+      if (this.peek().identifier) {
+        property.key = this.identifier();
+      } else {
+        property.key = this.constant();
+      }
+      this.consume(':');
+      property.value = this.primary();
+      properties.push(property);
+    } while (this.expect(','))
+  }
+  this.consume('}');
+  return { type: AST.ObjectExpression, properties: properties };
+}
+
 AST.prototype.ast = function (text) {
   this.tokens = this.lexer.lex(text);
   return this.program();
@@ -184,11 +215,23 @@ AST.prototype.program = function () {
 AST.prototype.primary = function () {
   if (this.expect('[')) {
     return this.arrayDeclaration();
+  } else if (this.expect('{')) {
+    return this.object();
   } else if (this.constants.hasOwnProperty(this.tokens[0].text)) {
     return this.constants[this.consume().text];
+  } else if (this.peek().identifier) {
+    return this.identifier();
   } else {
     return this.constant();
   }
+};
+
+ASTCompiler.prototype.nonComputedMember = function (left, right) {
+  return '(' + left + ').' + right;
+};
+
+AST.prototype.identifier = function () {
+  return { type: AST.Identifier, name: this.consume().text };
 };
 
 AST.prototype.constant = function () {
@@ -246,11 +289,20 @@ ASTCompiler.prototype.recurse = function (ast) {
       break;
     case AST.Literal:
       return this.escape(ast.value);
+    case AST.ObjectExpression:
+      var properties = _.map(ast.properties, _.bind(function (property) {
+        var key = property.key.type === AST.Identifier ? property.key.name : this.escape(property.key.value);
+        var value = this.recurse(property.value);
+        return key + ':' + value;
+      }, this));
+      return '{' + properties.join(',') + '}';
     case AST.ArrayExpression:
       var elements = _.map(ast.elements, _.bind(function (element) {
         return this.recurse(element)
       }, this))
       return '[' + elements.join(',') + ']';
+    case AST.Identifier:
+      return this.nonComputedMember('s', ast.name);
   }
 }
 
@@ -258,7 +310,7 @@ ASTCompiler.prototype.compile = function (text) {
   var ast = this.astBuilder.ast(text);
   this.state = { body: [] };
   this.recurse(ast);
-  return new Function(this.state.body.join(''));
+  return new Function('s', this.state.body.join(''));
 };
 
 ASTCompiler.prototype.escape = function (value) {
