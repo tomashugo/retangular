@@ -12,6 +12,7 @@ AST.ArrayExpression = 'ArrayExpression';
 AST.ObjectExpression = 'ObjectExpression';
 AST.Property = 'Property';
 AST.Identifier = 'Identifier';
+AST.ThisExpression = 'ThisExpression';
 
 // Init Utilities
 
@@ -49,6 +50,7 @@ AST.prototype.constants = {
   'null': { type: AST.Literal, value: null },
   'true': { type: AST.Literal, value: true },
   'false': { type: AST.Literal, value: false },
+  'this': { type: AST.ThisExpression }
 };
 
 ASTCompiler.prototype.stringEscapeRegex = /[^ a-zA-Z0-9]/g;
@@ -282,6 +284,14 @@ function ASTCompiler (astBuilder) {
   this.astBuilder = astBuilder;
 }
 
+ASTCompiler.prototype.if_ = function (test, consequent) {
+  this.state.body.push('if(', test, '){', consequent, '}')
+};
+
+ASTCompiler.prototype.assign = function (id, value) {
+  return id + '=' + value + ';';
+};
+
 ASTCompiler.prototype.recurse = function (ast) {
   switch (ast.type) {
     case AST.Program:
@@ -302,15 +312,28 @@ ASTCompiler.prototype.recurse = function (ast) {
       }, this))
       return '[' + elements.join(',') + ']';
     case AST.Identifier:
-      return this.nonComputedMember('s', ast.name);
+      var intoId = this.nextId();
+      this.state.body.push('var ', intoId, ';');
+      this.if_('s', this.assign(intoId, this.nonComputedMember('s', ast.name)))
+      return intoId;
+    case AST.ThisExpression:
+      return 's';
   }
 }
 
+ASTCompiler.prototype.nextId = function () {
+  var id = 'v' + (this.state.nextId++);
+  this.state.vars.push(id);
+  return id;
+};
+
 ASTCompiler.prototype.compile = function (text) {
   var ast = this.astBuilder.ast(text);
-  this.state = { body: [] };
+  this.state = { body: [], nextId: 0, vars: [] };
   this.recurse(ast);
-  return new Function('s', this.state.body.join(''));
+  return new Function('s',
+    (this.state.vars.length ? 'var ' + this.state.vars.join(',') + ';' : '')
+    + this.state.body.join(''));
 };
 
 ASTCompiler.prototype.escape = function (value) {
